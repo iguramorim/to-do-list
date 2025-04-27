@@ -1,6 +1,5 @@
 "use client";
 
-import { Task } from "@/todolist/Task";
 import { useState, useEffect, useRef } from "react";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
@@ -12,7 +11,16 @@ import {
   CardTitle,
 } from "../ui/card";
 import { Label } from "../ui/label";
-import { FilePenLine, Save, Trash } from "lucide-react";
+import {
+  FilePenLine,
+  Save,
+  Trash,
+  StickyNote,
+  Check,
+  LayoutList,
+  LayoutGrid,
+  Plus,
+} from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,38 +35,45 @@ import {
 
 export default function ToDoList() {
   const [descricao, setDescricao] = useState("");
-  const [tarefas, setTarefas] = useState<string[]>([]);
+  const [tarefas, setTarefas] = useState<
+    { descricao: string; concluida: boolean }[]
+  >([]);
   const [editIndex, setEditIndex] = useState<number | null>(null);
   const [novaDescricao, setNovaDescricao] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const [layout, setLayout] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (descricao.trim()) {
-      const task = new Task(descricao);
-      task.adicionarDescricao();
-      setTarefas([...tarefas, ...task.guardarDescricao]);
+      const novaTarefa = { descricao, concluida: false };
+      setTarefas([...tarefas, novaTarefa]);
       setDescricao("");
     }
   };
 
   const handleDelete = (index: number) => {
-    const task = new Task("");
-    task.guardarDescricao = [...tarefas];
-    task.delete(index);
-    setTarefas(task.guardarDescricao);
+    const novasTarefas = [...tarefas];
+    novasTarefas.splice(index, 1);
+    setTarefas(novasTarefas);
   };
 
   const handleUpdate = (index: number) => {
     if (novaDescricao.trim()) {
-      const task = new Task("");
-      task.guardarDescricao = [...tarefas];
-      task.update(index, novaDescricao);
-      setTarefas(task.guardarDescricao);
+      const novasTarefas = [...tarefas];
+      novasTarefas[index].descricao = novaDescricao;
+      setTarefas(novasTarefas);
       setEditIndex(null);
       setNovaDescricao("");
     }
+  };
+
+  const toggleConcluida = (index: number) => {
+    const novasTarefas = [...tarefas];
+    novasTarefas[index].concluida = !novasTarefas[index].concluida;
+    setTarefas(novasTarefas);
   };
 
   useEffect(() => {
@@ -86,27 +101,66 @@ export default function ToDoList() {
                 className="flex-1"
               />
             </div>
-            <Button size={"lg"} type="submit">
-              Adicionar
+            <Button size="lg" type="submit">
+              <Plus /> Adicionar
             </Button>
           </form>
         </CardContent>
       </Card>
 
-      <div className="space-y-2 mt-5">
+      {tarefas.length > 0 && (
+        <Button
+          className="my-3"
+          variant="outline"
+          onClick={() => setLayout(!layout)}
+        >
+          {layout ? <LayoutList /> : <LayoutGrid />}
+        </Button>
+      )}
+
+      <div
+        className={`${
+          layout ? "grid grid-cols-2 gap-2" : "flex flex-col gap-2"
+        } transition-all`}
+      >
         {tarefas.map((item, index) => (
-          <Card key={index} className="shadow-md p-4 hover:border-gray-300">
-            <CardContent className="p-0">
-              <div className="flex justify-between items-center">
-                <p className="capitalize">{item}</p>
+          <Card
+            key={index}
+            className={`${
+              item.concluida ? "border-accent" : "hover:border-gray-300"
+            }`}
+          >
+            <CardContent>
+              <div
+                className={`${
+                  layout
+                    ? "flex flex-col items-start gap-3"
+                    : "flex justify-between items-center"
+                }`}
+              >
+                <div
+                  className={`capitalize ${
+                    item.concluida ? "line-through text-gray-400" : ""
+                  }`}
+                >
+                  {item.descricao}
+                </div>
 
                 <div className="flex gap-2">
                   <Button
+                    variant="outline"
+                    onClick={() => toggleConcluida(index)}
+                    className="hover:text-green-500"
+                  >
+                    {item.concluida ? <Check /> : <StickyNote />}
+                  </Button>
+
+                  <Button
                     onClick={() => {
                       setEditIndex(index);
-                      setNovaDescricao(item);
+                      setNovaDescricao(item.descricao);
                     }}
-                    variant={"outline"}
+                    variant="outline"
                     className="hover:text-yellow-500"
                   >
                     <FilePenLine />
@@ -114,25 +168,22 @@ export default function ToDoList() {
 
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button
-                        variant={"outline"}
-                        className="hover:text-red-500"
-                      >
+                      <Button variant="outline" className="hover:text-red-500">
                         <Trash />
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
                         <AlertDialogTitle>
-                          Tem certeza de que deseja deletar?
+                          Tem certeza que deseja deletar?
                         </AlertDialogTitle>
                         <AlertDialogDescription>
-                          {item.toLocaleUpperCase()} será removido e essa ação
-                          não poderá ser desfeita.
+                          {item.descricao.toUpperCase()} será removido e essa
+                          ação não poderá ser desfeita.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
                         <AlertDialogAction asChild>
                           <Button
                             onClick={() => handleDelete(index)}
@@ -157,10 +208,9 @@ export default function ToDoList() {
                     onFocus={(e) => e.target.select()}
                     className="capitalize"
                   />
-
                   <Button
                     onClick={() => handleUpdate(index)}
-                    variant={"outline"}
+                    variant="outline"
                     className="hover:text-blue-500"
                   >
                     <Save />
